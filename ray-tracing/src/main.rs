@@ -1,3 +1,10 @@
+mod color;
+mod vec3;
+
+use std::io;
+
+use color::Color;
+
 fn main () {
     // Image
     const IMAGE_WIDTH: i32 = 256;
@@ -14,6 +21,9 @@ fn main () {
             let r = i as f64 / (IMAGE_WIDTH - 1) as f64; // Red pour rouge.
             let g = j as f64 / (IMAGE_HEIGHT - 1) as f64; // Green pour vert.
             let b = 0.25; // Blue pour bleu.
+            // Va mettre la bonne couleur à la bonne place.
+            let pixel_color = Color::new(r, g, b);
+            color::write_color(&mut io::stdout(), pixel_color);
 
             // Conversion des valeurs de 0-1 à 0-255 pour l'affichage.
             let ir = (255.999 * r) as i32;
