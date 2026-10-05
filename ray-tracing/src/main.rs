@@ -1,3 +1,4 @@
+mod camera;
 mod color;
 mod common;
 mod hittable;
@@ -8,12 +9,13 @@ mod vec3;
 
 use std::io;
 
+use camera::Camera;
 use color::Color;
 use hittable::{HitRecord, Hittable};
 use hittable_list::HittableList;
 use ray::Ray;
 use sphere::Sphere;
-use vec3::{Point3, Vec3};
+use vec3::Point3;
 
 fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64 {
     let oc = r.origin() - center;
@@ -31,7 +33,8 @@ fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64 {
 fn ray_color(r: &Ray, world: &dyn Hittable) -> Color {
     let mut rec = HitRecord::new();
     if world.hit(r, 0.0, common::INFINITY, &mut rec) {
-        return 0.5 * (rec.normal + Color::new(1.0, 1.0, 1.0));
+        let direction = rec.normal + vec3::random_in_unit_sphere();
+        return 0.5 * ray_color(&Ray::new(rec.p, direction), world);
     }
     let unit_direction = vec3::unit_vector(r.direction());
     let t = 0.5 * (unit_direction.y() + 1.0);
@@ -43,6 +46,7 @@ fn main () {
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 400;
     const IMAGE_HEIGHT: i32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as i32;
+    const SAMPLES_PER_PIXEL: i32 = 100;
     
     // World
     let mut world = HittableList::new();
@@ -51,11 +55,11 @@ fn main () {
 
 
     // Camera
- 
+    let cam = Camera::new();
     let viewport_height = 2.0;
     let viewport_width = ASPECT_RATIO * viewport_height;
     let focal_length = 1.0;
- 
+
     let origin = Point3::new(0.0, 0.0, 0.0);
     let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
     let vertical = Vec3::new(0.0, viewport_height, 0.0);
@@ -67,16 +71,16 @@ fn main () {
 
     // Double boucles qui va écrire les pixels de l'image.
     for j in (0..IMAGE_HEIGHT).rev() {
-        eprint!("\rScanlines remaining: {} ", j); // Affiche le nombre de lignes restantes à traiter avant de pouvoir afficher l'image.
+        eprint!("\rScanlines remaining: {} ", j);
         for i in 0..IMAGE_WIDTH {
-            let u = i as f64 / (IMAGE_WIDTH - 1) as f64;
-            let v = j as f64 / (IMAGE_HEIGHT - 1) as f64;
-            let r = Ray::new(
-                origin,
-                lower_left_corner + u * horizontal + v * vertical - origin,
-            );
-            let pixel_color = ray_color(&r, &world);
-            color::write_color(&mut io::stdout(), pixel_color);
+            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+            for _ in 0..SAMPLES_PER_PIXEL {
+                let u = (i as f64 + common::random_double()) / (IMAGE_WIDTH - 1) as f64;
+                let v = (j as f64 + common::random_double()) / (IMAGE_HEIGHT - 1) as f64;
+                let r = cam.get_ray(u, v);
+                pixel_color += ray_color(&r, &world);
+            }
+            color::write_color(&mut io::stdout(), pixel_color, SAMPLES_PER_PIXEL);
         }
     }
     eprint!("\nDone.\n");// Indique quand le programme à fini de générer l'image.
