@@ -11,6 +11,11 @@ pub trait Material {
         attenuation: &mut Color,
         scattered: &mut Ray,
     ) -> bool;
+
+    // Lumière émise par le matériau : noir, sauf pour les sources de lumière.
+    fn emitted(&self) -> Color {
+        Color::new(0.0, 0.0, 0.0)
+    }
 }
 
 pub struct Lambertian {
@@ -120,5 +125,32 @@ impl Material for Dielectric {
         *attenuation = Color::new(1.0, 1.0, 1.0);
         *scattered = Ray::new(rec.p, direction);
         true
+    }
+}
+
+// Source de lumière : n'éclaire pas par rebond, elle émet sa propre couleur.
+pub struct DiffuseLight {
+    emit: Color,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Color) -> DiffuseLight {
+        DiffuseLight { emit }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(
+        &self,
+        _r_in: &Ray,
+        _rec: &HitRecord,
+        _attenuation: &mut Color,
+        _scattered: &mut Ray,
+    ) -> bool {
+        false
+    }
+
+    fn emitted(&self) -> Color {
+        self.emit
     }
 }
