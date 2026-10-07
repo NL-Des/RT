@@ -1,13 +1,13 @@
 # RT
-Sujet github de l'exercice : https://github.com/01-edu/public/tree/master/subjects/rt
-Guide pour créer le moteur en rust : https://the-ray-tracing-road-to-rust.vercel.app/
-Extension VSCode pour lire les images directements dans VSCode : https://marketplace.visualstudio.com/items?itemName=ngtystr.ppm-pgm-viewer-for-vscode
+- Sujet github de l'exercice : https://github.com/01-edu/public/tree/master/subjects/rt
+- Guide pour créer le moteur en rust : https://the-ray-tracing-road-to-rust.vercel.app/
+- Extension VSCode pour lire les images directements dans VSCode : https://marketplace.visualstudio.com/items?itemName=ngtystr.ppm-pgm-viewer-for-vscode
 
 ## Fonctionnalités
 
-- Quatre objets : sphère, cube, plan et cylindre, chacun placé où l'on veut dans la scène.
-- Une caméra libre : position, point visé et angle de champ réglables.
-- Une lumière réglable : une lampe (sphère lumineuse) et la luminosité du ciel.
+- Génération de quatre objets : sphère, cube, plan et cylindre, chacun placé où l'on veut dans la scène.
+- Une caméra libre : position, point visé et angle de champ réglables. Depuis le code.
+- Une lumière réglable : une lampe (sphère lumineuse) et la luminosité du ciel. Depuis le code.
 - Des ombres, calculées par les rebonds des rayons (path tracing).
 - Trois matières : mate (`Lambertian`), métal réfléchissant (`Metal`) et verre réfractant (`Dielectric`).
 - Sortie au format PPM (`P3`), résolution choisie sur la ligne de commande.
@@ -20,7 +20,7 @@ Le programme écrit l'image au format PPM sur la sortie standard ; il faut donc 
 
 ```bash
 cd ray-tracing
-cargo run --release > image.ppm
+cargo run --release > ../images/image.ppm
 ```
 
 Sans option, il rend la scène `all` en 800x600. La progression (`Scanlines remaining`) s'affiche dans le terminal pendant le calcul. Le mode `--release` est indispensable : sans lui, le rendu est beaucoup plus lent.
@@ -34,27 +34,12 @@ Les options se placent après `--` :
 | `--samples <n>` | Nombre de rayons par pixel : plus il y en a, moins l'image a de grain | `200` |
 
 ```bash
-# Aperçu rapide, environ une seconde
-cargo run --release -- --scene all --width 240 --samples 100 > image.ppm
+# Un exemple pour un aperçu rapide.
+cargo run --release -- --scene all --width 240 --samples 100 > ../images/image.ppm
 
-# La même scène vue d'ailleurs, en 800x600
-cargo run --release -- --scene all_alt > image.ppm
+# Une scène plus complexe et longue.
+cargo run --release -- --scene random --width 800 --samples 200 > ../images/image.ppm 
 ```
-
-Un rendu 800x600 avec 200 rayons par pixel prend environ 20 secondes. La scène `random` (celle du guide, avec des centaines de sphères) est beaucoup plus lente.
-
-## Images fournies
-
-Les quatre images demandées par le sujet sont dans [images/](images/), en 800x600 avec 1000 rayons par pixel :
-
-| Fichier | Scène | Contenu |
-|---|---|---|
-| [images/sphere.ppm](images/sphere.ppm) | `sphere` | Une sphère sur un plan |
-| [images/plane_cube.ppm](images/plane_cube.ppm) | `plane_cube` | Un plan et un cube, moins éclairés que la sphère |
-| [images/all.ppm](images/all.ppm) | `all` | Un cube, une sphère, un cylindre et un plan |
-| [images/all_alt.ppm](images/all_alt.ppm) | `all_alt` | La scène précédente, caméra déplacée |
-
-Pour en régénérer une : `cargo run --release -- --scene sphere --samples 1000 > ../images/sphere.ppm`.
 
 ## Créer une scène
 
@@ -62,9 +47,10 @@ Les scènes sont décrites dans [ray-tracing/src/scenes.rs](ray-tracing/src/scen
 
 ```rust
 Scene {
-    world,          // HittableList : les objets et la lampe
-    camera,         // point de vue
-    ambient: 0.3,   // luminosité du ciel
+    world,              // HittableList : les objets et la lampe
+    camera,             // point de vue
+    ambient: 0.3,       // luminosité du ciel
+    light: Some(light), // la lampe renvoyée par add_light, ou None sans lampe
 }
 ```
 
@@ -125,12 +111,12 @@ Deux réglages, tous deux dans la scène :
 1. L'intensité de la lampe, dernier argument de `add_light`. La lampe est une sphère lumineuse ; c'est elle qui projette les ombres.
 
 ```rust
-add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 10.0); // position, intensité
+let light = add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 2.5); // position, intensité
 ```
 
 2. La luminosité du ciel, champ `ambient` du `Scene` : `0.0` pour une nuit noire, `1.0` pour le plein jour. Plus elle est haute, plus les ombres sont claires.
 
-La scène `sphere` utilise une lampe à `10.0` et un ciel à `0.3` ; la scène `plane_cube`, plus sombre, une lampe à `3.0` et un ciel à `0.1`.
+La scène `sphere` utilise une lampe à `2.5` et un ciel à `0.3` ; la scène `plane_cube`, plus sombre, une lampe à `0.75` et un ciel à `0.1`.
 
 ### Déplacer la caméra
 
