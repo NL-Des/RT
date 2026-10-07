@@ -13,11 +13,19 @@ use crate::vec3::{Point3, Vec3};
 
 pub const SCENE_NAMES: [&str; 5] = ["sphere", "plane_cube", "all", "all_alt", "random"];
 
+// Position et taille de la lampe, pour pouvoir la viser depuis les surfaces mates.
+pub struct Light {
+    pub center: Point3,
+    pub radius: f64,
+}
+
 pub struct Scene {
     pub world: HittableList,
     pub camera: Camera,
     // Luminosité du ciel : 0.0 = nuit noire, 1.0 = plein jour
     pub ambient: f64,
+    // Lampe de la scène, `None` si elle n'est éclairée que par le ciel
+    pub light: Option<Light>,
 }
 
 pub fn by_name(name: &str, aspect_ratio: f64) -> Option<Scene> {
@@ -48,9 +56,14 @@ fn add_ground(world: &mut HittableList) {
 }
 
 // Lampe : sphère lumineuse blanche, `intensity` règle sa luminosité.
-fn add_light(world: &mut HittableList, position: Point3, intensity: f64) {
+fn add_light(world: &mut HittableList, position: Point3, intensity: f64) -> Light {
+    let light = Light {
+        center: position,
+        radius: 6.0,
+    };
     let light_material = Rc::new(DiffuseLight::new(Color::new(intensity, intensity, intensity)));
-    world.add(Box::new(Sphere::new(position, 6.0, light_material)));
+    world.add(Box::new(Sphere::new(light.center, light.radius, light_material)));
+    light
 }
 
 // Scène 1 : une sphère.
@@ -65,7 +78,7 @@ fn sphere(aspect_ratio: f64) -> Scene {
         sphere_material,
     )));
 
-    add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 2.5);
+    let light = add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 2.5);
 
     Scene {
         world,
@@ -76,6 +89,7 @@ fn sphere(aspect_ratio: f64) -> Scene {
             aspect_ratio,
         ),
         ambient: 0.3,
+        light: Some(light),
     }
 }
 
@@ -91,7 +105,7 @@ fn plane_cube(aspect_ratio: f64) -> Scene {
         cube_material,
     )));
 
-    add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 0.75);
+    let light = add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 0.75);
 
     Scene {
         world,
@@ -102,11 +116,12 @@ fn plane_cube(aspect_ratio: f64) -> Scene {
             aspect_ratio,
         ),
         ambient: 0.1,
+        light: Some(light),
     }
 }
 
 // Objets des scènes 3 et 4 : un cube, une sphère, un cylindre et un plan.
-fn all_objects() -> HittableList {
+fn all_objects() -> (HittableList, Light) {
     let mut world = HittableList::new();
     add_ground(&mut world);
 
@@ -132,15 +147,16 @@ fn all_objects() -> HittableList {
         cylinder_material,
     )));
 
-    add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 2.5);
+    let light = add_light(&mut world, Point3::new(-6.0, 10.0, 5.0), 2.5);
 
-    world
+    (world, light)
 }
 
 // Scène 3 : tous les objets, vus de face.
 fn all(aspect_ratio: f64) -> Scene {
+    let (world, light) = all_objects();
     Scene {
-        world: all_objects(),
+        world,
         camera: camera(
             Point3::new(0.0, 3.0, 9.0),
             Point3::new(0.0, 0.8, 0.0),
@@ -148,13 +164,15 @@ fn all(aspect_ratio: f64) -> Scene {
             aspect_ratio,
         ),
         ambient: 0.3,
+        light: Some(light),
     }
 }
 
 // Scène 4 : la scène 3 vue depuis une autre position.
 fn all_alt(aspect_ratio: f64) -> Scene {
+    let (world, light) = all_objects();
     Scene {
-        world: all_objects(),
+        world,
         camera: camera(
             Point3::new(7.0, 5.0, 6.0),
             Point3::new(0.0, 0.8, 0.0),
@@ -162,6 +180,7 @@ fn all_alt(aspect_ratio: f64) -> Scene {
             aspect_ratio,
         ),
         ambient: 0.3,
+        light: Some(light),
     }
 }
 
@@ -245,5 +264,6 @@ fn random(aspect_ratio: f64) -> Scene {
             dist_to_focus,
         ),
         ambient: 1.0,
+        light: None,
     }
 }

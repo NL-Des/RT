@@ -16,6 +16,12 @@ pub trait Material {
     fn emitted(&self) -> Color {
         Color::new(0.0, 0.0, 0.0)
     }
+
+    // Surface mate : elle renvoie la lumière dans toutes les directions,
+    // on peut donc l'éclairer en visant directement la lampe.
+    fn is_diffuse(&self) -> bool {
+        false
+    }
 }
 
 pub struct Lambertian {
@@ -42,6 +48,10 @@ impl Material for Lambertian {
         }
         *attenuation = self.albedo;
         *scattered = Ray::new(rec.p, scatter_direction);
+        true
+    }
+
+    fn is_diffuse(&self) -> bool {
         true
     }
 }
