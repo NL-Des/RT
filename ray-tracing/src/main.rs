@@ -23,6 +23,7 @@ use vec3::Vec3;
 
 // Éclairage direct : au lieu d'attendre qu'un rebond tombe sur la lampe par hasard,
 // on tire un rayon vers elle. Renvoie la lumière reçue au point `rec.p`.
+// rec.p est la surface touchée par le rayon au moment du rebond.
 fn direct_light(rec: &HitRecord, world: &dyn Hittable, light: &Light) -> Color {
     let black = Color::new(0.0, 0.0, 0.0);
 
@@ -32,10 +33,13 @@ fn direct_light(rec: &HitRecord, world: &dyn Hittable, light: &Light) -> Color {
         return black;
     }
 
-    // Vue depuis le point, la lampe est un disque : le cône qui l'entoure
+    // Vue depuis le point, la lampe est une sphère.
+    // Du point de vue du point éclairé, c'est un cône.
     let cos_max = f64::sqrt(1.0 - light.radius * light.radius / distance_squared);
 
     // Repère dont l'axe `w` pointe vers le centre de la lampe
+    // Il y a un rayon par appel par pixel.
+    // Chaque rayon termine dans le cône de lumière de la lampe, mais pas forcément sur le centre.
     let w = vec3::unit_vector(to_center);
     let a = if w.x().abs() > 0.9 {
         Vec3::new(0.0, 1.0, 0.0)
@@ -45,13 +49,13 @@ fn direct_light(rec: &HitRecord, world: &dyn Hittable, light: &Light) -> Color {
     let v = vec3::unit_vector(vec3::cross(w, a));
     let u = vec3::cross(w, v);
 
-    // Direction au hasard dans le cône
-    let z = 1.0 - common::random_double() * (1.0 - cos_max);
-    let phi = 2.0 * common::PI * common::random_double();
-    let s = f64::sqrt(1.0 - z * z);
-    let direction = s * f64::cos(phi) * u + s * f64::sin(phi) * v + z * w;
+    // Direction au hasard dans le cône.
+    let z = 1.0 - common::random_double() * (1.0 - cos_max); // L'écart par rapport à l'axe.
+    let phi = 2.0 * common::PI * common::random_double(); // Angle autour de l'axe, de quel côté on s'écarte.
+    let s = f64::sqrt(1.0 - z * z); //la part perpendiculaire à l'axe.
+    let direction = s * f64::cos(phi) * u + s * f64::sin(phi) * v + z * w; // Assemblage des trois composantes. Et prise en compte de l'éloignement de la cible.
 
-    // Lampe derrière la surface
+    // Vérification que la Lampe, la Lumière, soit du bon côté de la surface de l'exercice.
     let cos = vec3::dot(direction, rec.normal);
     if cos <= 0.0 {
         return black;
@@ -65,37 +69,42 @@ fn direct_light(rec: &HitRecord, world: &dyn Hittable, light: &Light) -> Color {
     light_rec.mat.as_ref().unwrap().emitted() * (cos * 2.0 * (1.0 - cos_max))
 }
 
-// `count_emitted` : faux quand la lampe a déjà été comptée par `direct_light`
-// au rebond précédent, pour ne pas l'ajouter deux fois.
+
 fn ray_color(
-    r: &Ray,
-    world: &dyn Hittable,
-    light: Option<&Light>,
-    ambient: f64,
-    depth: i32,
-    count_emitted: bool,
+    r: &Ray, // Le rayon à suivre, de son origine à sa destination. Il peut rebondir sur des surfaces, et chaque rebond peut générer un nouveau rayon.
+    world: &dyn Hittable, // La scène, tout ce que le rayon peut toucher.
+    light: Option<&Light>, // La lamp de la scène.
+    ambient: f64, // La luminosité du ciel.
+    depth: i32, // Le nombre de rebonds autorisés.
+    count_emitted: bool, // Faut-il compter la lumière émise par les surfaces touchées par le rayon, ou seulement la lumière réfléchie ?
 ) -> Color {
-    // If we've exceeded the ray bounce limit, no more light is gathered
+    // Si on a dépassé le nombre de rebonds autorisés, on ne renvoie rien.
+    // Sa permet d'initier ombres et reflexions, mais pas de manière infinie.
     if depth <= 0 {
         return Color::new(0.0, 0.0, 0.0);
     }
 
+    // C'est le coeur de ray_color : on regarde si le rayon touche un objet de la scène.
+    // Si oui, quelle est la couleur qui revient de ce point de contact, en fonction de la lumière reçue et de la matière.
     let mut rec = HitRecord::new();
     if world.hit(r, 0.001, common::INFINITY, &mut rec) {
-        let mat = rec.mat.as_ref().unwrap();
+        let mat = rec.mat.as_ref().unwrap(); // L'objet est-il brillant ou mat ?
         let emitted = if count_emitted {
             mat.emitted()
         } else {
             Color::new(0.0, 0.0, 0.0)
         };
-        let mut attenuation = Color::default();
-        let mut scattered = Ray::default();
+        // Le rayon va-t-il rebondir sur la surface touchée, ou s'arrêter là ?
+        let mut attenuation = Color::default(); // La couleur de la lumière réfléchie par la surface touchée. Combien de lumière est absorbée par la surface, et combien est renvoyée ?
+        let mut scattered = Ray::default(); // Le nouveau rayon après rebond.
+        // Si le rayon rebondit, on calcule la couleur de la lumière reçue par le nouveau rayon.
         if mat.scatter(r, &rec, &mut attenuation, &mut scattered) {
             // Surface mate : on vise la lampe, le rebond ne doit plus la compter
-            let direct = match light {
+            let direct = match light { 
                 Some(light) if mat.is_diffuse() => Some(direct_light(&rec, world, light)),
                 _ => None,
             };
+            // On calcule la couleur de la lumière reçue par le rayon après rebond.
             let bounced = ray_color(&scattered, world, light, ambient, depth - 1, direct.is_none());
             return match direct {
                 Some(direct) => emitted + attenuation * (direct + bounced),
@@ -110,6 +119,7 @@ fn ray_color(
     ambient * ((1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0))
 }
 
+// Affiche les instructions d'utilisation du programme, en cas d'erreur dans le terminal.
 fn usage() -> String {
     format!(
         "Usage: cargo run --release -- [--scene <nom>] [--width <pixels>] [--samples <n>] > image.ppm\n\
@@ -120,20 +130,22 @@ fn usage() -> String {
     )
 }
 
+// Si échec, affiche un message d'erreur et les instructions d'utilisation, puis quitte le programme.
 fn fail(message: &str) -> ! {
     eprintln!("{}\n{}", message, usage());
     process::exit(1);
 }
 
+// Initialisation de la scène, de la caméra, et génération de l'image.
 fn main () {
     // Image
-    const ASPECT_RATIO: f64 = 4.0 / 3.0;
-    const MAX_DEPTH: i32 = 50;
-    let mut image_width: i32 = 800;
-    let mut samples_per_pixel: i32 = 200;
-    let mut scene_name = String::from("all");
+    const ASPECT_RATIO: f64 = 4.0 / 3.0; // Ratio largeur/hauteur de l'image.
+    const MAX_DEPTH: i32 = 50; // Nombre de rebonds maximum autorisés pour un rayon.
+    let mut image_width: i32 = 800; // Largeur de l'image en pixels.
+    let mut samples_per_pixel: i32 = 200; // Nombre de rayons par pixel, pour lisser l'image et réduire le bruit.
+    let mut scene_name = String::from("all"); // Nom de la scène à produire, par défaut "all".
 
-    // Arguments de la ligne de commande
+    // Arguments de la ligne de commande entrée dans le terminal.
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -156,6 +168,7 @@ fn main () {
             _ => fail(&format!("Argument inconnu : {}", arg)),
         }
     }
+    // Calcul de la hauteur de l'image en fonction de la largeur et du ratio.
     let image_height = ((image_width as f64 / ASPECT_RATIO) as i32).max(2);
 
     // World, Camera
@@ -167,8 +180,8 @@ fn main () {
     let cam = scene.camera;
     let light = scene.light.as_ref();
 
-    // Render
-    print!("P3\n{} {}\n255\n", image_width, image_height);
+    // Écriture de l'en-tête du fichier PPM dans le terminal, pour que le programme puisse être redirigé vers un fichier image.
+    print!("P3\n{} {}\n255\n", image_width, image_height); // P3 : format texte, 255 : valeur max d'une couleur.
     let mut out = BufWriter::new(io::stdout().lock());
 
     // Double boucles qui va écrire les pixels de l'image.
