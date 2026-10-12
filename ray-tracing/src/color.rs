@@ -25,7 +25,7 @@ pub fn write_color(out: &mut impl Write, pixel_color: Color, samples_per_pixel: 
     writeln!(
         out,
         "{} {} {}",
-        (256.0 * common::clamp(r, 0.0, 0.999)) as i32,
+        (256.0 * common::clamp(r, 0.0, 0.999)) as i32, // Clamping pour éviter d'avoir des valeurs en dehors de l'intervalle [0, 255].
         (256.0 * common::clamp(g, 0.0, 0.999)) as i32,
         (256.0 * common::clamp(b, 0.0, 0.999)) as i32,
     )
