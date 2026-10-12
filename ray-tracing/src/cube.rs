@@ -5,7 +5,8 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 
-// Boîte alignée sur les axes, définie par ses deux coins opposés.
+// Cube aligné sur les axes, définie par ses deux coins opposés (min et max).
+// mat est le matériau du cube, pour le rendu.
 pub struct Cube {
     min: Point3,
     max: Point3,
@@ -13,17 +14,19 @@ pub struct Cube {
 }
 
 impl Cube {
+    // Crée le cube à partir des coins min et max, et du matériau m.
     pub fn new(min: Point3, max: Point3, m: Rc<dyn Material>) -> Cube {
         Cube { min, max, mat: m }
     }
 
-    // Cube de côté `size` centré sur `center`.
+    // Crée le centre du cube.
     pub fn from_center(center: Point3, size: f64, m: Rc<dyn Material>) -> Cube {
         let half = Vec3::new(size / 2.0, size / 2.0, size / 2.0);
         Cube::new(center - half, center + half, m)
     }
 }
 
+// Utilise les vaecteurs pour créer la normale de la face du cube, pour les rayons.
 fn axis_normal(axis: usize, sign: f64) -> Vec3 {
     match axis {
         0 => Vec3::new(sign, 0.0, 0.0),
@@ -32,6 +35,9 @@ fn axis_normal(axis: usize, sign: f64) -> Vec3 {
     }
 }
 
+// Implémente l'interface Hittable pour le cube, pour détecter les intersections avec les rayons.
+// Ce qui permet de savoir si un rayon touche le cube et de calculer les informations de l'intersection.
+// Et donc de pouvoir représenter en 3D les ombres, les couleurs, etc...
 impl Hittable for Cube {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let orig = [r.origin().x(), r.origin().y(), r.origin().z()];
@@ -56,7 +62,7 @@ impl Hittable for Cube {
 
             let mut t0 = (min[axis] - orig[axis]) / dir[axis];
             let mut t1 = (max[axis] - orig[axis]) / dir[axis];
-            // Le rayon entre par la face opposée à sa direction
+            // Le rayon entre par la face opposée à sa direction.
             let mut sign = -1.0;
             if t0 > t1 {
                 std::mem::swap(&mut t0, &mut t1);
