@@ -2,17 +2,24 @@ use crate::color::Color;
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
 use crate::{common, vec3};
- 
+
+// Pose les règles pour la réaction des matériaux.
+// Comment réagit une surface quant un rayon la touche.
+
+// Il y a trois méthodes, comportements potentiel, pour chaque matière.
 pub trait Material {
+    // La seule méthode obligatoire pour toutes les matières.
     fn scatter(
         &self,
-        r_in: &Ray,
-        rec: &HitRecord,
-        attenuation: &mut Color,
-        scattered: &mut Ray,
-    ) -> bool;
+        r_in: &Ray, // C'est le rayon entrant.
+        rec: &HitRecord, // Point d'impact entre le rayon et la normale de la surface de l'objet.
+        attenuation: &mut Color, // La couleur que l'on multiplie par la lumière (nombre de rayon passé dessus, qui perdent en intensités, la matière "garde" de la lumière)
+        scattered: &mut Ray, // Indique si après l'impact, le rayon rebondit.
+    ) -> bool; // True : il rebondit, False : il n'est pas renvoyé dans une autre direction.
 
     // Lumière émise par le matériau : noir, sauf pour les sources de lumière.
+    // Dans la logique de programmation chaque matériau émet une lumière.
+    // Donc, ils sont noirs pour corriger cet état de fait.
     fn emitted(&self) -> Color {
         Color::new(0.0, 0.0, 0.0)
     }
@@ -24,6 +31,7 @@ pub trait Material {
     }
 }
 
+// Surface mate.
 pub struct Lambertian {
     albedo: Color,
 }
@@ -56,6 +64,7 @@ impl Material for Lambertian {
     }
 }
 
+// Surface miroir plus ou moins réfléchissante.
 pub struct Metal {
     albedo: Color,
     fuzz: f64,
@@ -86,6 +95,7 @@ impl Material for Metal {
     }
 }
 
+// Surface transparente et parfois réfléchissante (Un verre, de l'eau)
 pub struct Dielectric {
     ir: f64, // Index of refraction
 }
@@ -138,7 +148,8 @@ impl Material for Dielectric {
     }
 }
 
-// Source de lumière : n'éclaire pas par rebond, elle émet sa propre couleur.
+// Source de lumière : elle émet sa propre couleur.
+// Les rayons ne peuvent pas rebondir sur elle.
 pub struct DiffuseLight {
     emit: Color,
 }
