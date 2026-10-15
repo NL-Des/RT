@@ -59,17 +59,18 @@ impl Vec3 {
     }
 }
 
+// Renommage pour faciliter la lisibilité durant les étapes de développements.
 pub type Point3 = Vec3;
 
  
-// Output formatting
+// Affiche  "x y z", le format utilisé pour écrire les pixels dans le fichier PPM.
 impl Display for Vec3 {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "{} {} {}", self.e[0], self.e[1], self.e[2])
     }
 }
  
-// -Vec3
+// -Vec3, permet d'inverser les composants.
 impl Neg for Vec3 {
     type Output = Vec3;
  
@@ -78,28 +79,28 @@ impl Neg for Vec3 {
     }
 }
  
-// Vec3 += Vec3
+// Vec3 += Vec3, permet d'additionner les composants.
 impl AddAssign for Vec3 {
     fn add_assign(&mut self, v: Vec3) {
         *self = *self + v;
     }
 }
  
-// Vec3 *= f64
+// Vec3 *= f64, permet de multiplier les couleurs (atténuation d'un matériau * la couleur reçue)
 impl MulAssign<f64> for Vec3 {
     fn mul_assign(&mut self, t: f64) {
         *self = *self * t;
     }
 }
  
-// Vec3 /= f64
+// Vec3 /= f64, permet de réduire la couleur.
 impl DivAssign<f64> for Vec3 {
     fn div_assign(&mut self, t: f64) {
         *self = *self / t;
     }
 }
  
-// Vec3 + Vec3
+// Vec3 + Vec3, addition simple.
 impl Add for Vec3 {
     type Output = Vec3;
  
@@ -108,7 +109,7 @@ impl Add for Vec3 {
     }
 }
  
-// Vec3 - Vec3
+// Vec3 - Vec3, soustraction simple.
 impl Sub for Vec3 {
     type Output = Vec3;
  
@@ -117,7 +118,7 @@ impl Sub for Vec3 {
     }
 }
  
-// Vec3 * Vec3
+// Vec3 * Vec3, multiplication simple.
 impl Mul for Vec3 {
     type Output = Vec3;
 
@@ -152,11 +153,15 @@ impl Div<f64> for Vec3 {
         Vec3::new(self.x() / t, self.y() / t, self.z() / t)
     }
 }
- 
+
+// C'est la fonction la plus utilisée du ray tracer.
+// Si deux vecteurs pointent dans le même sens, elle sert à calculer les intersections et les angles.
 pub fn dot(u: Vec3, v: Vec3) -> f64 {
     u.e[0] * v.e[0] + u.e[1] * v.e[1] + u.e[2] * v.e[2]
 }
- 
+
+// Le produit vectoriel, il renvoie un vecteur perpendiculaire.
+// Cela permet à la caméra de construire son repère de vision.
 pub fn cross(u: Vec3, v: Vec3) -> Vec3 {
     Vec3::new(
         u.e[1] * v.e[2] - u.e[2] * v.e[1],
@@ -164,11 +169,14 @@ pub fn cross(u: Vec3, v: Vec3) -> Vec3 {
         u.e[0] * v.e[1] - u.e[1] * v.e[0],
     )
 }
- 
+
+// Renvoi un vecteur de longueur 1 qui garde par contre la direction.
 pub fn unit_vector(v: Vec3) -> Vec3 {
     v / v.length()
 }
 
+// C'est de l'échantillonnage par rejet. Il y a du tir de rayon aléatoire.
+// Si sa rencontre un objet, on garde. Sinon, on recommence.
 pub fn random_in_unit_sphere() -> Vec3 {
     loop {
         let p = Vec3::random_range(-1.0, 1.0);
@@ -179,10 +187,13 @@ pub fn random_in_unit_sphere() -> Vec3 {
     }
 }
 
+// Normalisation d'un point dnas la sphère, ce qui permet d'occasionner le rebond,
+// Puis de le faire dans une direction aléatoire.
 pub fn random_unit_vector() -> Vec3 {
     unit_vector(random_in_unit_sphere())
 }
- 
+
+// Comme en haut, mais en 2D, pour créer un effet de flou de profondeur.
 pub fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = Vec3::new(
@@ -197,10 +208,15 @@ pub fn random_in_unit_disk() -> Vec3 {
     }
 }
 
+// L'effet miroir.
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - 2.0 * dot(v, n) * n
 }
 
+// La réfraction (loi de Snell-Descartes). https://fr.wikipedia.org/wiki/Lois_de_Snell-Descartes
+// Le rayon réfracté est découpé en deux rebonds :
+// Un perpendiculaire à la normale.
+// Un le long de la normale.
 pub fn refract(uv: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
     let cos_theta = f64::min(dot(-uv, n), 1.0);
     let r_out_perp = etai_over_etat * (uv + cos_theta * n);
