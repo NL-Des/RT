@@ -6,11 +6,12 @@ use crate::ray::Ray;
 use crate::vec3::{self, Point3};
 
 pub struct Sphere {
-    center: Point3,
-    radius: f64,
-    mat: Rc<dyn Material>,
+    center: Point3, // Point du centre de la sphère.
+    radius: f64, // Rayon.
+    mat: Rc<dyn Material>, // Matériau composant la sphère.
 }
 
+// Création de la sphère.
 impl Sphere {
     pub fn new(cen: Point3, r: f64, m: Rc<dyn Material>) -> Sphere {
         Sphere {
@@ -21,6 +22,8 @@ impl Sphere {
     }
 }
 
+// Intégration du trait Hittable, pour qu'un rayon puisse toucher la sphère.
+// Gestion de l'impact du rayon, permet d'être dans la liste des objets d'un scène.
 impl Hittable for Sphere {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let oc = r.origin() - self.center;
@@ -34,7 +37,6 @@ impl Hittable for Sphere {
  
         let sqrt_d = f64::sqrt(discriminant);
  
-        // Find the nearest root that lies in the acceptable range
         let mut root = (-half_b - sqrt_d) / a;
         if root <= t_min || t_max <= root {
             root = (-half_b + sqrt_d) / a;
