@@ -11,6 +11,7 @@ use crate::plane::Plane;
 use crate::sphere::Sphere;
 use crate::vec3::{Point3, Vec3};
 
+// Les noms des différentes scènes possibles à simuler.
 pub const SCENE_NAMES: [&str; 5] = ["sphere", "plane_cube", "all", "all_alt", "random"];
 
 // Position et taille de la lampe, pour pouvoir la viser depuis les surfaces mates.
@@ -19,15 +20,16 @@ pub struct Light {
     pub radius: f64,
 }
 
+// Regroupe tout ce qu'il faut pour réaliser un rendu.
 pub struct Scene {
-    pub world: HittableList,
-    pub camera: Camera,
-    // Luminosité du ciel : 0.0 = nuit noire, 1.0 = plein jour
-    pub ambient: f64,
-    // Lampe de la scène, `None` si elle n'est éclairée que par le ciel
-    pub light: Option<Light>,
+    pub world: HittableList, // La liste de tous les objets sur lesquels la lumière peut s'arrêter ou rebondir.
+    pub camera: Camera, // La position de notre point de vision.
+    pub ambient: f64, // Luminosité du ciel : 0.0 = nuit noire, 1.0 = plein jour
+    pub light: Option<Light>, // La lampe, "None" si elle n'y est pas.
 }
 
+// La fonction utilise match, pour trouver la scène qui correspond, depuis l'information de la commande dans le terminal.
+// Qui est amenée jusqu'ici.
 pub fn by_name(name: &str, aspect_ratio: f64) -> Option<Scene> {
     match name {
         "sphere" => Some(sphere(aspect_ratio)),
@@ -39,13 +41,13 @@ pub fn by_name(name: &str, aspect_ratio: f64) -> Option<Scene> {
     }
 }
 
-// Caméra nette (ouverture nulle) placée en `lookfrom` et visant `lookat`.
+// Caméra nette placée en "lookfrom" et visant "lookat". "vfov" et "aspect_ratio" servent à la nette de l'image, pour le spectateur.
 fn camera(lookfrom: Point3, lookat: Point3, vfov: f64, aspect_ratio: f64) -> Camera {
     let vup = Vec3::new(0.0, 1.0, 0.0);
     Camera::new(lookfrom, lookat, vup, vfov, aspect_ratio, 0.0, 1.0)
 }
 
-// Sol : plan horizontal passant par l'origine.
+// Ceci ajoute le sol, le plan infini, avec un matériau gris mat.
 fn add_ground(world: &mut HittableList) {
     let ground_material = Rc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
     world.add(Box::new(Plane::new(
@@ -55,7 +57,7 @@ fn add_ground(world: &mut HittableList) {
     )));
 }
 
-// Lampe : sphère lumineuse blanche, `intensity` règle sa luminosité.
+// Mets en place la sphère de lumière avec le matériaux qui diffuse la lumière "DiffuseLight".
 fn add_light(world: &mut HittableList, position: Point3, intensity: f64) -> Light {
     let light = Light {
         center: position,
@@ -93,7 +95,7 @@ fn sphere(aspect_ratio: f64) -> Scene {
     }
 }
 
-// Scène 2 : un plan et un cube, moins éclairés que la scène 1.
+// Scène 2 : un cube.
 fn plane_cube(aspect_ratio: f64) -> Scene {
     let mut world = HittableList::new();
     add_ground(&mut world);
@@ -184,7 +186,7 @@ fn all_alt(aspect_ratio: f64) -> Scene {
     }
 }
 
-// Scène finale du guide : beaucoup de petites sphères aléatoires, éclairées par le ciel.
+// Environs 480 petites sphères aléatoires et 3 grosses sphères.
 fn random(aspect_ratio: f64) -> Scene {
     let mut world = HittableList::new();
 
@@ -205,18 +207,18 @@ fn random(aspect_ratio: f64) -> Scene {
             );
 
             if (center - Point3::new(4.0, 0.2, 0.0)).length() > 0.9 {
-                if choose_mat < 0.8 {
+                if choose_mat < 0.8 { // 80 % de chance que la matière soit mate.
                     // Diffuse
                     let albedo = Color::random() * Color::random();
                     let sphere_material = Rc::new(Lambertian::new(albedo));
                     world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
-                } else if choose_mat < 0.95 {
+                } else if choose_mat < 0.95 { // 15 % de chance que la matière soit métallique.
                     // Metal
                     let albedo = Color::random_range(0.5, 1.0);
                     let fuzz = common::random_double_range(0.0, 0.5);
                     let sphere_material = Rc::new(Metal::new(albedo, fuzz));
                     world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
-                } else {
+                } else { // 5 % de chances que la matière soit de verre.
                     // Glass
                     let sphere_material = Rc::new(Dielectric::new(1.5));
                     world.add(Box::new(Sphere::new(center, 0.2, sphere_material)));
@@ -263,7 +265,7 @@ fn random(aspect_ratio: f64) -> Scene {
             aperture,
             dist_to_focus,
         ),
-        ambient: 1.0,
-        light: None,
+        ambient: 1.0, // Éclairage par le ciel.
+        light: None, // Notre point de vue n'est pas la source de lumière.
     }
 }
